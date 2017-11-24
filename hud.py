@@ -5,16 +5,16 @@ from datetime import datetime
 from imutils.face_utils import rect_to_bb
 
 HUD_COLOR = (0, 255, 0)
-HUD_CLIGHT = (200, 255, 200)
-HUD_RED = (0, 0, 255)
-FONT_SIZE = 1
-FONT = cv2.FONT_HERSHEY_PLAIN
+HUD_ROI = (0, 165, 255)
+FONT_SIZE = 0.5
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+
 
 def mark_roi(frame, rect, label=""):
     mask = np.zeros_like(frame, dtype=np.uint8)
 
     (x, y, w, h) = rect_to_bb(rect)
-    cv2.rectangle(mask, (x, y), (x + w, y + h), HUD_CLIGHT, thickness=1)
+    cv2.rectangle(mask, (x, y), (x + w, y + h), HUD_ROI, thickness=1)
     draw_str(mask, label, (x, y - 10))
 
     apply_hud(frame, mask)
@@ -31,7 +31,7 @@ def draw_str(frame, txt, target, thickness=1, shadow=False):
         cv2.putText(frame, txt, (x + 1, y + 1), FONT, FONT_SIZE, (0, 0, 0), thickness=thickness, lineType=cv2.LINE_AA)
 
 
-def get_hud(frame, fps, idx=None):
+def draw_hud(frame, cam_name='', frame_idx=None):
     mask = np.zeros_like(frame, dtype=np.uint8)
     rows, cols = frame.shape[:2]
 
@@ -41,8 +41,9 @@ def get_hud(frame, fps, idx=None):
 
     t = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
-    draw_str(mask, fps, (x1 + 20, y1 - 10))
+    if cam_name:
+        draw_str(mask, cam_name, (x1 - 20, y1 - 10), shadow=True)
 
-    draw_str(mask, "{0} - {1}".format(t, idx), (x1 + 20, y2 + 20), shadow=True)
+    draw_str(mask, "{0} - {1}".format(t, frame_idx), (x1 - 20, y2 + 20), shadow=True)
 
     apply_hud(frame, mask)
