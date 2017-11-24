@@ -1,24 +1,11 @@
-# Python 2/3 compatibility
-from __future__ import print_function
-import sys
-
 import imutils
-
-PY3 = sys.version_info[0] == 3
-
-if PY3:
-    from functools import reduce
-
-import numpy as np
 import cv2
-
-import os
-import itertools as it
 from contextlib import contextmanager
 
 
 def clock():
     return cv2.getTickCount() / cv2.getTickFrequency()
+
 
 @contextmanager
 def Timer(msg):
@@ -27,7 +14,8 @@ def Timer(msg):
     try:
         yield
     finally:
-        print("%.2f s" % ((clock()-start)))
+        print("%.2f s" % ((clock() - start)))
+
 
 class VideoWriter:
     def __init__(self, capture, out_file="/tmp/video.mp4", codec="X264"):
