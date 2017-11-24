@@ -1,4 +1,6 @@
 # coding: utf-8
+import argparse
+
 import cv2
 import threading
 from time import time, sleep
@@ -16,10 +18,14 @@ from hud import draw_hud, mark_roi
 
 if __name__ == '__main__':
 
-    # TODO read from args
-    cam_num = 0
-    detection_frequency = 4
+    arg_parser = argparse.ArgumentParser()
 
+    arg_parser.add_argument("-n", "--camera_name", help="Camera name", default='0')
+    arg_parser.add_argument("-f", "--detection_frequency", help="How often detect faces on video stream", default='4')
+
+    args = vars(arg_parser.parse_args())
+
+    detection_frequency = int(args['detection_frequency'])
 
     detector = dlib.get_frontal_face_detector()
 
@@ -50,7 +56,7 @@ if __name__ == '__main__':
                 (x, y, w, h) = rect_to_bb(rect)
 
 
-        draw_hud(frame, '#{}'.format(cam_num), frame_idx=frame_counter)
+        draw_hud(frame, '#{}'.format(args['camera_name']), frame_idx=frame_counter)
         cv2.imshow('preview', frame)
 
         if cv2.waitKey(1) == 27:
