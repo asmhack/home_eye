@@ -10,10 +10,10 @@ FONT_SIZE = 0.5
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
-def mark_roi(frame, rect, label=""):
+def draw_roi(frame, rect, label=""):
     mask = np.zeros_like(frame, dtype=np.uint8)
 
-    (x, y, w, h) = rect_to_bb(rect)
+    x, y, w, h = rect
     cv2.rectangle(mask, (x, y), (x + w, y + h), HUD_ROI, thickness=1)
     draw_str(mask, label, (x, y - 10))
 
