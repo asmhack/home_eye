@@ -1,24 +1,21 @@
 # coding: utf-8
 import argparse
+import logging
 
 import cv2
-import threading
-from time import time, sleep
-from pprint import pprint
-from scipy.spatial import distance
 import dlib
-import imutils
-import numpy as np
-import os
-import re
-from imutils.face_utils import rect_to_bb, shape_to_np, FACIAL_LANDMARKS_IDXS
-from imutils.video import VideoStream, FPS
-from common import clock, VideoWriter, Timer, prepare_frame
-from face import Face
+from imutils.face_utils import rect_to_bb
+from imutils.video import VideoStream
+from common import prepare_frame
+from face import Face, ModifiedFaceAligner
 from hud import draw_hud, draw_roi
+from storage import Storage
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s: %(message)s')
 
 if __name__ == '__main__':
-
+    logging.info('Starting...')
     arg_parser = argparse.ArgumentParser()
 
     arg_parser.add_argument("-n", "--camera_name", help="Camera name", default='0')
@@ -26,20 +23,26 @@ if __name__ == '__main__':
 
     args = vars(arg_parser.parse_args())
 
-    faces_on_frame = []
-
     detection_frequency = int(args['detection_frequency'])
 
     detector = dlib.get_frontal_face_detector()
 
+    predictor = dlib.shape_predictor('data/shape_predictor_68_face_landmarks.dat')
+    facerec = dlib.face_recognition_model_v1('data/dlib_face_recognition_resnet_model_v1.dat')
+
+    face_aligner = ModifiedFaceAligner(predictor)
+    storage = Storage()
+    logging.debug('Initing camera stream...')
     vs = VideoStream(usePiCamera=False).start()
     cv2.namedWindow('preview', cv2.WINDOW_AUTOSIZE)
     cv2.startWindowThread()
 
+    faces_on_frame = []
     mapped_names = {}
     frame_counter = 0
     currentFaceID = len(mapped_names)
 
+    logging.info('Processing...')
     while True:
         if frame_counter > 100000:
             frame_counter = 0
@@ -55,6 +58,8 @@ if __name__ == '__main__':
             quality, bbox = face.update_tracker(gray)
             if quality <= 5:
                 faces_on_frame.remove(face)
+            # else:
+            #     face.process_frame(frame, gray, frame_counter)
 
         # Every X frames, we will have to determine which faces
         # are present in the frame
@@ -90,9 +95,12 @@ if __name__ == '__main__':
                         break
 
                 if matched_face is None:
-                    matched_face = Face(currentFaceID, gray, (x, y, w, h))
+                    matched_face = Face(currentFaceID, storage, facerec, frame,  gray, (x, y, w, h), face_aligner)
                     faces_on_frame.append(matched_face)
                     currentFaceID += 1
+                else:
+                    matched_face.add_face(frame, gray)
+
 
         for face in faces_on_frame:
             draw_roi(frame, face.bbox, face.name)
@@ -103,3 +111,8 @@ if __name__ == '__main__':
 
         if cv2.waitKey(1) == 27:
             break
+
+    logging.info('Exiting...')
+    cv2.destroyAllWindows()
+    vs.stop()
+    exit(0)

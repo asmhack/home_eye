@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 from datetime import datetime
 
-from imutils.face_utils import rect_to_bb
-
 HUD_COLOR = (0, 255, 0)
 HUD_ROI = (0, 165, 255)
 FONT_SIZE = 0.5
@@ -26,9 +24,9 @@ def apply_hud(frame, mask):
 
 def draw_str(frame, txt, target, thickness=1, shadow=False):
     x, y = target
-    cv2.putText(frame, txt, (x, y), FONT, FONT_SIZE, HUD_COLOR, lineType=cv2.LINE_AA)
+    cv2.putText(frame, str(txt), (x, y), FONT, FONT_SIZE, HUD_COLOR, lineType=cv2.LINE_AA)
     if shadow:
-        cv2.putText(frame, txt, (x + 1, y + 1), FONT, FONT_SIZE, (0, 0, 0), thickness=thickness, lineType=cv2.LINE_AA)
+        cv2.putText(frame, str(txt), (x + 1, y + 1), FONT, FONT_SIZE, (0, 0, 0), thickness=thickness, lineType=cv2.LINE_AA)
 
 
 def draw_hud(frame, cam_name='', frame_idx=None):
