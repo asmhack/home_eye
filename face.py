@@ -24,7 +24,7 @@ class Face(object):
         # face tracker
         self.tracker = dlib.correlation_tracker()
         # face vectors
-        self.vectors = [] #dlib.vectors()
+        self.vectors = []  # dlib.vectors()
 
         self.tracking_quality = 0
         self.is_recognized = False
@@ -56,7 +56,6 @@ class Face(object):
             # calc hash
             # face_descriptor = self.facerec.compute_face_descriptor(original_frame, self.shape, 100) # wil be faster
             face_descriptor = self.facerec.compute_face_descriptor(original_frame, self.shape)
-            # pprint(face_descriptor)
             # add hash to current face describer
             self.vectors.append(face_descriptor)
 
@@ -73,31 +72,27 @@ class Face(object):
                     logger.info(' ^ SAVE 6 faces. total = {}'.format(len(self.storage.vectors)))
                     self.detection_count_tries += 1
                     self.is_recognized = True
-                    self.name = str(self.id)
 
-                    threading.Thread(target=self.dump_faces_to_fs).start()
-                    # self.dump_faces_to_fs()
+                    self.set_name(self.id)
+                    self.dump()
+
             else:
                 logger.info('just save extra faces. total = {}'.format(len(self.storage.vectors)))
                 self.storage.append([self.id, face_descriptor])
                 self.dump_single_face_to_fs(self.face_aligned)
 
+    def dump(self):
+        threading.Thread(target=self.dump_faces_to_fs).start()
+
     def recognize_face(self):
-        # try:
         logger.debug('recognize_face {}'.format(self.id))
         self.detection_count_tries += 1
         res = self.storage.match_vector(self.vectors[-1], self.id)
 
         if res != False:
             self.is_recognized = True
-            pprint(res)
-            self.name = '{} ({})'.format(res[0], res[1])
+            self.set_name(res[0], res[1])
             self.id = res[0]
-
-
-
-        # except:
-        #     pass
 
     def init_tracker(self, gray_full):
         x, y, w, h = self.bbox
@@ -132,6 +127,9 @@ class Face(object):
             i = len(self.faces)
 
         cv2.imwrite('data/faces/{}/{}{}.png'.format(self.get_name(), t, i), face)
+
+    def set_name(self, name, quality=-1):
+        self.name = '{} ({})'.format(name, quality)
 
 
 class ModifiedFaceAligner(FaceAligner):

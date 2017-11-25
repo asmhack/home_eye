@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     logging.info('Processing...')
     while True:
-        if frame_counter > 100000:
+        if frame_counter > 1000000000:
             frame_counter = 0
 
         frame = vs.read()
@@ -57,9 +57,13 @@ if __name__ == '__main__':
         for face in faces_on_frame:
             quality, bbox = face.update_tracker(gray)
             if quality <= 5:
+                # todo check if we really need to save vectors and dump files
+                # storage.extend(face.vectors, face.id)
+                # face.dump()
+
                 faces_on_frame.remove(face)
-            # else:
-            #     face.process_frame(frame, gray, frame_counter)
+                # else:
+                #     face.process_frame(frame, gray, frame_counter)
 
         # Every X frames, we will have to determine which faces
         # are present in the frame
@@ -95,16 +99,14 @@ if __name__ == '__main__':
                         break
 
                 if matched_face is None:
-                    matched_face = Face(currentFaceID, storage, facerec, frame,  gray, (x, y, w, h), face_aligner)
+                    matched_face = Face(currentFaceID, storage, facerec, frame, gray, (x, y, w, h), face_aligner)
                     faces_on_frame.append(matched_face)
                     currentFaceID += 1
                 else:
                     matched_face.add_face(frame, gray)
 
-
         for face in faces_on_frame:
             draw_roi(frame, face.bbox, face.name)
-
 
         draw_hud(frame, '#{}'.format(args['camera_name']), frame_idx=frame_counter)
         cv2.imshow('preview', frame)
