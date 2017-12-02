@@ -8,12 +8,15 @@ import dlib
 from imutils.face_utils import shape_to_np, FACIAL_LANDMARKS_IDXS, FaceAligner
 import numpy as np
 import os
+import pickle
+
+from utils import FacesModel
 
 logger = logging.getLogger(__name__)
 
 
 class Face(object):
-    def __init__(self, id, storage, facerec, original_frame, gray, bbox, aligner, max_images_to_track=100):
+    def __init__(self, id, storage, facerec, original_frame, gray, bbox, aligner, max_images_to_track=40):
         self.storage = storage
         self.facerec = facerec
         self.id = id
@@ -33,6 +36,7 @@ class Face(object):
         self.faces = []
         self.detection_count_tries = 0
         self.max_detection_count_tries = 5
+        self.total_images_stored = 0
 
         self.init_tracker(gray)
         self.add_face(original_frame, gray)
@@ -50,7 +54,7 @@ class Face(object):
 
         self.align_face(original_frame, gray)
 
-        if len(self.faces) <= self.max_images_to_track:
+        if self.total_images_stored <= self.max_images_to_track:
 
             self.faces.append(self.face_aligned)
             # calc hash
@@ -58,18 +62,17 @@ class Face(object):
             face_descriptor = self.facerec.compute_face_descriptor(original_frame, self.shape)
             # add hash to current face describer
             self.vectors.append(face_descriptor)
-
+            self.total_images_stored += 1
             if not self.is_recognized:
                 if self.detection_count_tries < self.max_detection_count_tries:
                     # try to recognize face
-                    threading.Thread(target=self.recognize_face).start()
-                    # self.recognize_face()
+                    # threading.Thread(target=self.recognize_face).start()
+                    self.recognize_face()
+
                 elif self.detection_count_tries == self.max_detection_count_tries:
                     # this is new person and we need to save it
-                    logger.info('SAVE 6 faces. total = {}'.format(len(self.storage.vectors)))
-
                     self.storage.extend(self.vectors, self.id)
-                    logger.info(' ^ SAVE 6 faces. total = {}'.format(len(self.storage.vectors)))
+                    logger.info('SAVE 6 faces. total = {}'.format(len(self.storage.vectors)))
                     self.detection_count_tries += 1
                     self.is_recognized = True
 
@@ -80,9 +83,11 @@ class Face(object):
                 logger.info('just save extra faces. total = {}'.format(len(self.storage.vectors)))
                 self.storage.append([self.id, face_descriptor])
                 self.dump_single_face_to_fs(self.face_aligned)
+                FacesModel.Instance().save_single_vector(self.id, face_descriptor)
 
     def dump(self):
-        threading.Thread(target=self.dump_faces_to_fs).start()
+        # threading.Thread(target=self.dump_faces_to_fs).start()
+        self.dump_faces_to_fs()
 
     def recognize_face(self):
         logger.debug('recognize_face {}'.format(self.id))
@@ -91,8 +96,18 @@ class Face(object):
 
         if res != False:
             self.is_recognized = True
-            self.set_name(res[0], res[1])
+            self.set_name(res[0]) # , res[1]
             self.id = res[0]
+
+            if res[1] >= .5: # if not so similar to previous ones, then save it, even if limit was reached
+                for vec in self.vectors:
+                    self.storage.append([self.id, vec])
+                    FacesModel.Instance().save_single_vector(self.id, vec)
+
+                for face in self.faces:
+                    self.dump_single_face_to_fs(face)
+
+            self.total_images_stored = self.storage.get_total_images_for_label(self.id)
 
     def init_tracker(self, gray_full):
         x, y, w, h = self.bbox
@@ -113,6 +128,9 @@ class Face(object):
         h = int(tracked_position.height())
         return (x, y, w, h)
 
+    def dump_vectors_to_file(self):
+        FacesModel.Instance().save_multiple_vectors(self.id, self.vectors)
+
     def dump_faces_to_fs(self):
         if len(self.faces) > 0 and not os.path.exists('data/faces/{}'.format(self.get_name())):
             os.mkdir('data/faces/{}'.format(self.get_name()))
@@ -122,14 +140,16 @@ class Face(object):
         for i, face in enumerate(self.faces):
             self.dump_single_face_to_fs(face, i, t)
 
+        self.dump_vectors_to_file()
+
     def dump_single_face_to_fs(self, face, i=None, t=time()):
         if i is None:
             i = len(self.faces)
 
         cv2.imwrite('data/faces/{}/{}{}.png'.format(self.get_name(), t, i), face)
 
-    def set_name(self, name, quality=-1):
-        self.name = '{} ({})'.format(name, quality)
+    def set_name(self, name):
+        self.name = '{}'.format(name)
 
 
 class ModifiedFaceAligner(FaceAligner):

@@ -6,14 +6,23 @@ class Storage(object):
     Handles all faces vectors
     """
 
-    def __init__(self):
-        self.vectors = []
+    def __init__(self, model):
+        self.vectors = model
+        self.current_face_id = 0
+
+        if model:
+            max_row = max(model, key=lambda x: x[0])
+            if max_row:
+                self.current_face_id = max_row[0] + 1
 
     def append(self, new_vector):
         self.vectors.append(new_vector)
 
     def extend(self, new_vectors, id):
         self.vectors.extend([[id, vec] for vec in new_vectors])
+
+    def get_total_images_for_label(self, label):
+        return len(filter(lambda x: x[0]==label, self.vectors))
 
     def dump(self):
         pass

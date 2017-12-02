@@ -1,6 +1,7 @@
 # coding: utf-8
 import argparse
 import logging
+from pprint import pprint
 
 import cv2
 import dlib
@@ -10,6 +11,7 @@ from common import prepare_frame
 from face import Face, ModifiedFaceAligner
 from hud import draw_hud, draw_roi
 from storage import Storage
+from utils import FacesModel
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s -  %(levelname)s: %(message)s')
@@ -31,16 +33,20 @@ if __name__ == '__main__':
     facerec = dlib.face_recognition_model_v1('data/dlib_face_recognition_resnet_model_v1.dat')
 
     face_aligner = ModifiedFaceAligner(predictor)
-    storage = Storage()
+
+    model = FacesModel.Instance().load()
+    storage = Storage(model)
+
     logging.debug('Initing camera stream...')
+
     vs = VideoStream(usePiCamera=False).start()
+
     cv2.namedWindow('preview', cv2.WINDOW_AUTOSIZE)
     cv2.startWindowThread()
 
     faces_on_frame = []
-    mapped_names = {}
     frame_counter = 0
-    currentFaceID = len(mapped_names)
+    currentFaceID = storage.current_face_id
 
     logging.info('Processing...')
     while True:
@@ -58,9 +64,7 @@ if __name__ == '__main__':
             quality, bbox = face.update_tracker(gray)
             if quality <= 5:
                 # todo check if we really need to save vectors and dump files
-                # storage.extend(face.vectors, face.id)
-                # face.dump()
-
+                logger.info('remove {} face "{}".'.format('recognized' if face.is_recognized else 'unrecognized', face.get_name()))
                 faces_on_frame.remove(face)
                 # else:
                 #     face.process_frame(frame, gray, frame_counter)
