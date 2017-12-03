@@ -79,3 +79,16 @@ class FacesModel(object):
             result.append([int(row['label']), dlib.vector(json.loads(row['vector']))])
 
         return result
+
+    def get_name_by_label(self, label):
+        self.cursor.execute('SELECT name FROM faces WHERE label=?', (label,))
+        return self.cursor.fetchone()['name']
+
+    def create_new_face(self, label):
+        self.cursor.execute('INSERT INTO faces (label, name) VALUES(?,?)', (label, label))
+        self.db.commit()
+
+    def save_face_visit(self, label, start_time, end_time):
+        self.cursor.execute('INSERT INTO visits (label, timestamp_start, timestamp_end) VALUES(?,?,?)',
+                            (label, int(start_time), int(end_time)))
+        self.db.commit()

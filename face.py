@@ -8,7 +8,6 @@ import dlib
 from imutils.face_utils import shape_to_np, FACIAL_LANDMARKS_IDXS, FaceAligner
 import numpy as np
 import os
-import pickle
 
 from utils import FacesModel
 
@@ -29,11 +28,14 @@ class Face(object):
         # face vectors
         self.vectors = []  # dlib.vectors()
 
+        self.start_time = time()
+
         self.tracking_quality = 0
         self.is_recognized = False
         self.face_aligned = None
         self.shape = None
         self.faces = []
+        self.first_face = None
         self.detection_count_tries = 0
         self.max_detection_count_tries = 5
         self.total_images_stored = 0
@@ -56,6 +58,9 @@ class Face(object):
 
         if self.total_images_stored <= self.max_images_to_track:
 
+            if len(self.faces) == 0:
+                self.first_face = self.face_aligned
+
             self.faces.append(self.face_aligned)
             # calc hash
             # face_descriptor = self.facerec.compute_face_descriptor(original_frame, self.shape, 100) # wil be faster
@@ -75,6 +80,8 @@ class Face(object):
                     logger.info('SAVE 6 faces. total = {}'.format(len(self.storage.vectors)))
                     self.detection_count_tries += 1
                     self.is_recognized = True
+
+                    FacesModel.Instance().create_new_face(self.id)
 
                     self.set_name(self.id)
                     self.dump()
@@ -96,8 +103,9 @@ class Face(object):
 
         if res != False:
             self.is_recognized = True
-            self.set_name(res[0]) # , res[1]
             self.id = res[0]
+
+            self.set_name(FacesModel.Instance().get_name_by_label(self.id))
 
             if res[1] >= .5: # if not so similar to previous ones, then save it, even if limit was reached
                 for vec in self.vectors:
@@ -149,7 +157,26 @@ class Face(object):
         cv2.imwrite('data/faces/{}/{}{}.png'.format(self.get_name(), t, i), face)
 
     def set_name(self, name):
-        self.name = '{}'.format(name)
+        self.name = name
+
+    def is_it_my_face(self, x, y, w, h, x_bar, y_bar):
+        t_x, t_y, t_w, t_h = self.get_tracker_position()
+
+        t_x_bar = t_x + 0.5 * t_w
+        t_y_bar = t_y + 0.5 * t_h
+
+        # check if the centerpoint of the face is within the
+        # rectangleof a tracker region. Also, the centerpoint
+        # of the tracker region must be within the region
+        # detected as a face. If both of these conditions hold
+        # we have a match
+        if ((t_x <= x_bar <= (t_x + t_w)) and
+                (t_y <= y_bar <= (t_y + t_h)) and
+                (x <= t_x_bar <= (x + w)) and
+                (y <= t_y_bar <= (y + h))):
+            return True
+
+        return False
 
 
 class ModifiedFaceAligner(FaceAligner):

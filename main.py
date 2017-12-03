@@ -2,9 +2,12 @@
 import argparse
 import logging
 from pprint import pprint
+from time import time
+import traceback
 
 import cv2
 import dlib
+import sys
 from imutils.face_utils import rect_to_bb
 from imutils.video import VideoStream
 from common import prepare_frame
@@ -50,7 +53,7 @@ if __name__ == '__main__':
 
     logging.info('Processing...')
     while True:
-        if frame_counter > 1000000000:
+        if frame_counter > sys.maxint - 1: # 9223372036854775807 - 1
             frame_counter = 0
 
         frame = vs.read()
@@ -65,6 +68,8 @@ if __name__ == '__main__':
             if quality <= 5:
                 # todo check if we really need to save vectors and dump files
                 logger.info('remove {} face "{}".'.format('recognized' if face.is_recognized else 'unrecognized', face.get_name()))
+                FacesModel.Instance().save_face_visit(face.id, face.start_time, time())
+                face.dump_single_face_to_fs(face.first_face, '_first_face', int(face.start_time))
                 faces_on_frame.remove(face)
                 # else:
                 #     face.process_frame(frame, gray, frame_counter)
@@ -72,7 +77,6 @@ if __name__ == '__main__':
         # Every X frames, we will have to determine which faces
         # are present in the frame
         if (frame_counter % detection_frequency) == 0:
-
             faces = detector(gray, 1)
 
             for rect in faces:
@@ -85,20 +89,7 @@ if __name__ == '__main__':
 
                 matched_face = None
                 for face in faces_on_frame:
-                    t_x, t_y, t_w, t_h = face.get_tracker_position()
-
-                    t_x_bar = t_x + 0.5 * t_w
-                    t_y_bar = t_y + 0.5 * t_h
-
-                    # check if the centerpoint of the face is within the
-                    # rectangleof a tracker region. Also, the centerpoint
-                    # of the tracker region must be within the region
-                    # detected as a face. If both of these conditions hold
-                    # we have a match
-                    if ((t_x <= x_bar <= (t_x + t_w)) and
-                            (t_y <= y_bar <= (t_y + t_h)) and
-                            (x <= t_x_bar <= (x + w)) and
-                            (y <= t_y_bar <= (y + h))):
+                    if face.is_it_my_face(x, y, w, h, x_bar, y_bar):
                         matched_face = face
                         break
 
@@ -110,7 +101,7 @@ if __name__ == '__main__':
                     matched_face.add_face(frame, gray)
 
         for face in faces_on_frame:
-            draw_roi(frame, face.bbox, face.name)
+            draw_roi(frame, face.bbox, face.get_name())
 
         draw_hud(frame, '#{}'.format(args['camera_name']), frame_idx=frame_counter)
         cv2.imshow('preview', frame)
